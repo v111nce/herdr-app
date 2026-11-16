@@ -41,7 +41,8 @@ for herdr_local_var in $(compgen -A variable HC_); do
 done
 herdr_local_data="${HERDR_LOCAL_DATA_DIR:-$HOME/Library/Application Support/Herdr Local}"
 export HERDR_APP_HOME="$herdr_local_data/app"
-export HC_SESSION=herdr-local
+# The session occurs twice in the core socket path; macOS allows only 103 bytes.
+export HC_SESSION=hl
 export XDG_CONFIG_HOME="$herdr_local_data/config"
 export XDG_STATE_HOME="$herdr_local_data/state"
 export XDG_CACHE_HOME="$herdr_local_data/cache"
