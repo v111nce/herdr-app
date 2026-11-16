@@ -1,0 +1,83 @@
+#!/bin/bash
+# Personal fork build: package an isolated app without running the official installer.
+set -euo pipefail
+
+[[ $(uname -s) == Darwin ]] || { echo 'This build requires macOS.' >&2; exit 1; }
+cd "$(dirname "$0")/.."
+herdr_local_repo="$PWD"
+herdr_local_profile=debug
+if [[ $# == 1 && $1 == --release ]]; then
+    herdr_local_profile=release
+elif [[ $# != 0 ]]; then
+    echo "Usage: $0 [--release]" >&2
+    exit 2
+fi
+
+# Match the upstream CI toolchain. ZIG can point at another 0.16.0 installation.
+if [[ -z ${ZIG:-} ]]; then
+    if command -v zig >/dev/null 2>&1; then
+        export ZIG="$(command -v zig)"
+    else
+        export ZIG="$HOME/Library/Caches/herdr-dev-tools/zig-aarch64-macos-0.16.0/zig"
+    fi
+fi
+[[ -x "$ZIG" ]] || { echo 'Set ZIG to the Zig 0.16.0 executable.' >&2; exit 1; }
+[[ $("$ZIG" version) == 0.16.0 ]] || { echo 'This build requires Zig 0.16.0.' >&2; exit 1; }
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$herdr_local_repo/target}"
+cargo +1.95.0 build --locked --config 'profile.dev.package."*".opt-level=0' "$@"
+
+herdr_local_app="$herdr_local_repo/dist/Herdr Local.app"
+mkdir -p "$herdr_local_app/Contents/MacOS" "$herdr_local_app/Contents/Resources"
+cp "$CARGO_TARGET_DIR/$herdr_local_profile/herdr-app" "$herdr_local_app/Contents/MacOS/herdr-app-bin.new"
+mv -f "$herdr_local_app/Contents/MacOS/herdr-app-bin.new" "$herdr_local_app/Contents/MacOS/herdr-app-bin"
+cp assets/icons/Herdr.icns "$herdr_local_app/Contents/Resources/Herdr.icns"
+
+cat > "$herdr_local_app/Contents/MacOS/Herdr Local" <<'LAUNCHER'
+#!/bin/bash
+set -euo pipefail
+# A build started inside Herdr must not inherit that terminal's core connection.
+for herdr_local_var in $(compgen -A variable HC_); do
+    unset "$herdr_local_var"
+done
+herdr_local_data="${HERDR_LOCAL_DATA_DIR:-$HOME/Library/Application Support/Herdr Local}"
+export HERDR_APP_HOME="$herdr_local_data/app"
+export HC_SESSION=herdr-local
+export XDG_CONFIG_HOME="$herdr_local_data/config"
+export XDG_STATE_HOME="$herdr_local_data/state"
+export XDG_CACHE_HOME="$herdr_local_data/cache"
+export XDG_DATA_HOME="$herdr_local_data/data"
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
+mkdir -p "$HERDR_APP_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
+exec "$(dirname "$0")/herdr-app-bin" "$@"
+LAUNCHER
+chmod +x "$herdr_local_app/Contents/MacOS/Herdr Local" "$herdr_local_app/Contents/MacOS/herdr-app-bin"
+
+python3 - "$herdr_local_app" <<'PLIST'
+import pathlib
+import plistlib
+import re
+import sys
+
+app = pathlib.Path(sys.argv[1])
+version = re.search(r'^version = "([^"]+)"', pathlib.Path('Cargo.toml').read_text(), re.M)[1]
+info = {
+    'CFBundleExecutable': 'Herdr Local',
+    'CFBundleIdentifier': 'dev.herdr.app.local',
+    'CFBundleName': 'Herdr Local',
+    'CFBundleDisplayName': 'Herdr Local',
+    'CFBundleIconFile': 'Herdr',
+    'CFBundlePackageType': 'APPL',
+    'CFBundleShortVersionString': version,
+    'CFBundleVersion': version,
+    'NSPrincipalClass': 'NSApplication',
+    'NSHighResolutionCapable': True,
+    'NSMicrophoneUsageDescription': 'Terminal programs can use the microphone, for example for voice input.',
+    'NSCameraUsageDescription': 'Terminal programs can use the camera.',
+    'NSAppleEventsUsageDescription': 'Terminal programs can use AppleScript to control other apps.',
+}
+with (app / 'Contents/Info.plist').open('wb') as stream:
+    plistlib.dump(info, stream)
+PLIST
+codesign --force --sign - "$herdr_local_app"
+echo "Built $herdr_local_app ($herdr_local_profile)."
+echo "Open it with: open \"$herdr_local_app\""
