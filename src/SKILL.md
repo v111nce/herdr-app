@@ -145,6 +145,13 @@ those files or the generated guide. The app rewrites them on start.
   They are trusted JavaScript with command and network access.
   `"focusable": true` in `mod.json` lets `pane.go` move onto a copy; it receives
   `"focus"` from `nextCommand()` and focuses its own keyboard handle.
+- The + menu's RSS 订阅 opens the `rss` reader. Or run
+  `herdr-app do mod.open '{"name":"rss"}'` to toggle it. Add HTTP(S) RSS 2.0,
+  RSS 1.0 or Atom addresses there; click an article for its plain-text summary
+  and 打开原文 to open the browser. It stores subscriptions, cached articles
+  and read marks in mod-owned shared `rss.feeds` / `rss.cache`. While open,
+  subscriptions refresh every 15 minutes; `rss.refresh` refreshes immediately.
+  Failed refreshes retain cached articles. No sources are preconfigured.
 - A mod's `watchFolder(dir)` promise has `cancel()`; cancel it when the folder
   is no longer shown. It resolves with `[]` and releases only that call.
 - Shipped mods belong to Herdr: duplicate with `mod.clone` before editing.

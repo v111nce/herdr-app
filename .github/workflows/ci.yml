@@ -131,6 +131,9 @@ jobs:
         run: |
           ~/.bun/bin/bun test scripts/docs.test.ts
           ~/.bun/bin/bun scripts/docs.ts check
+      - name: RSS mod tests
+        if: matrix.platform == 'linux-x86_64'
+        run: ~/.bun/bin/bun test scripts/rss.test.ts
 
   # Keep the required check name stable while requiring every platform.
   test:

@@ -908,6 +908,23 @@ has 124 programs (agents, editors, runtimes, tools, databases, infra);
   `image("mods/<name>/logo.svg")` (full color), `svg("mods/<name>/icon.svg")`
   (tinted with the text color). Saving an asset under `mods/` updates every
   mod showing it, including images that were missing or invalid on first load.
+- `rss` is the RSS reader, opened from the + menu's RSS 订阅 or
+  `mod.open {name:"rss"}` (again closes it). Add HTTP(S) RSS 2.0, RSS 1.0 or
+  Atom feed URLs; select a subscription or 全部订阅, filter unread articles,
+  mark them read, or remove the selected subscription. Clicking an article
+  shows a plain-text summary; 打开原文 opens its HTTP(S) link in the system
+  browser. `rss.refresh` refreshes shown copies immediately.
+  With the reader focused, Up/Down previews articles and Enter opens the original;
+  typing in the address field keeps its normal input keys.
+  Refreshes run every 15 minutes while the reader is alive, including hidden layout copies;
+  failures keep the last successful content and show an error. Subscriptions
+  and cache/read marks are persisted in mod-owned shared `rss.feeds` (array of
+  `{id,url}`) and `rss.cache` (entries by subscription id). Removing a source
+  deletes its cache too. No feeds are preconfigured. Limits: 50 subscriptions,
+  1 MiB XML per feed, 200 cached articles per source, latest 300 displayed.
+  No credentials in URLs, DTDs, HTML rendering, external processes or new app
+  commands. To embed it, use a block with `content:{mod:"rss"}` or
+  `tab.new {name:"RSS",mod:"rss"}`.
 - The defaults are mods too, read them as examples: `spaces`, `agents`,
   `tabs` (the tab bar), `menu`, `prompt`, `confirm`, `help`, `toast`,
   Terminals' `picker`, `peek`, and `pane` (an
